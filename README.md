@@ -82,3 +82,17 @@ last: 9
 1. Clone this repository
 2. Install python3 dependencies: `pip3 install -r requirements.txt`
 3. Call `opp_compose`: `./opp_compose/opp_compose.py -h`
+
+
+## Simulation Container Details
+`opp_compose` simply creates containers from the provided image, very similar to a `docker run` call. It is up to the users responsibility to provide a working simulation container, with all necessary files for simulation.
+
+### Environment Variables
+`opp_compose` sets the following environment variables inside the container. Read and use this variables to configure your simulation:
+- `OPP_RUN_INIFILE`: Name of OMNeT++ configuration ini-file
+- `OPP_RUN_CONFIG`: Configuration name in OMNeT++ configuration ini-file
+- `OPP_RUN_NUMBER`: Run number of the OMNeT++ configuration
+- `OPP_RUN_RESULT_DIR`: Mounted directory (inside the container) where to store the result files
+
+### Storage for Result Files
+If the configuration option is provided, `opp_compose` can mount a host directory as volume into the container, so result files can be persistently stored. See also the Environment Variables section.
