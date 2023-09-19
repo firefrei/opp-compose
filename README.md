@@ -1,7 +1,9 @@
 # OMNeT++ Compose
 
 A python3-based tool for launching many OMNeT++ containers to run many simulations simultaneously.
-`opp_compose` usage is very similar to the `docker compose` command-line interface.
+
+`opp_compose` usage is very similar to the `docker compose` command-line interface. It uses the python bindings of Docker engine to run and manage containers.
+
 
 ### Example
 ```bash
@@ -76,6 +78,7 @@ last: 9
 ```
 
 ## Installation
+1. Install Docker engine on your host: https://docs.docker.com/engine/install/
 1. Clone this repository
 2. Install python3 dependencies: `pip3 install -r requirements.txt`
 3. Call `opp_compose`: `./opp_compose/opp_compose.py -h`
