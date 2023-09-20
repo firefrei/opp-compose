@@ -139,7 +139,7 @@ class ContainerFormatter:
 
 
 def main():
-    if CONFIG.last > os.cpu_count():
+    if (CONFIG.last - CONFIG.first) > os.cpu_count():
         LOG.warning("Not enough CPU cores available to run all simulations!")
 
     pp = pprint.PrettyPrinter(indent=4)
