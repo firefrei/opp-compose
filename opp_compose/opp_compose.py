@@ -232,6 +232,12 @@ def parse_configuration() -> argparse.Namespace:
     parser.add_argument('--container-result-path',
                         default="/usr/results",
                         help='Absolute path on container file system where to store simulation result files (right side of container bind mount)')
+    # parser.add_argument('--registry-username',
+    #                     help='Login username at container registry')
+    # parser.add_argument('--registry-password',
+    #                     help='Login password or access token at container registry')
+    # parser.add_argument('--registry-username',
+    #                     help='Login username at container registry')
     args = parser.parse_args()
 
     if args.command in ['help']:
@@ -256,7 +262,7 @@ def parse_configuration() -> argparse.Namespace:
                 # Use YAML config when:
                 # - Config value on cli evaluates to False
                 # - Config value on cli equals the default value (-> not overwritten by user on cli)
-                if not config_prim.get(key) or config_prim.get(key) == parser.get_default(key):
+                if config_prim.get(key) is None or config_prim.get(key) == parser.get_default(key):
                     config_prim[key] = value
 
             args = Namespace(**config_prim)
