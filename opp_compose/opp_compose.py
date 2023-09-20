@@ -212,7 +212,7 @@ def parse_configuration() -> argparse.Namespace:
                         help='Configuration name in OMNeT++ ini-file')
     parser.add_argument('--first', type=int, default=0,
                         help='Run number of the first run to launch')
-    parser.add_argument('--last', type=int,
+    parser.add_argument('--last', type=int, default=None,
                         help='Run number of the last run to launch')
     parser.add_argument('--image',
                         default='mobmecmeshsim',
