@@ -103,6 +103,11 @@ class ContainerManager:
             container.remove(v=v, force=force)
         return cnt
 
+    def image_pull(self) -> docker.models.images.Image:
+        return self.docker_client.images.pull(
+            self.config.image
+           )
+
 
 class ContainerFormatter:
     def status(self, containers, *, add_header: bool = True) -> str:
@@ -174,6 +179,10 @@ def main():
             items = containers.list()
             LOG.warning("Simulation container(s) are already running. Nothing was changed.\nExisting container(s):\n%s" % (
                 formatter.status(items)))
+    
+    elif CONFIG.command in ['pull', 'image-pull']:
+        image = containers.image_pull()
+        LOG.info("Pulled image %s." % (image))
 
     elif CONFIG.command in ['config-dump']:
         print(yaml.dump(vars(CONFIG)))
@@ -202,6 +211,7 @@ def parse_configuration() -> argparse.Namespace:
     parser.add_argument('command',
                         choices=['ps', 'up',
                                  'down', 'stop', 'rm',
+                                 'pull', 'image-pull',
                                  'config-dump', 'help',
                                  'testup'],
                         help='Command to execute. Commands are similar to `docker compose` commands.')
