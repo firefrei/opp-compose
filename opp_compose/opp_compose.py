@@ -11,6 +11,7 @@ from typing import Tuple, List
 from argparse import Namespace
 from collections.abc import Generator
 from datetime import datetime, timezone
+from tabulate import tabulate
 
 
 class SimulationConfigModel:
@@ -158,44 +159,43 @@ class ContainerManager:
 
 class ContainerFormatter:
     def status(self, containers, *, add_header: bool = True) -> str:
-        result = ""
-        if not containers:
-            result = "[]"
-        else:
-            if add_header:
-                output = "CONTAINER ID\tNAME\tSTATUS (RC)\tUPTIME\t\n"
-                result += output
+        header = [ 
+            "CONTAINER ID", "NAME", "STATUS (RC)", "UPTIME", ""
+            ] if add_header else None
 
-            for container in containers:
-                exit_code = container.__dict__['attrs']['State']['ExitCode']
-                error = container.__dict__['attrs']['State']['Error']
-                started_at_str = container.__dict__[
-                    'attrs']['State']['StartedAt']
-                finished_at_str = container.__dict__[
-                    'attrs']['State']['FinishedAt']
-                if sys.version_info < (3, 11):
-                    started_at_str = started_at_str[:26]
-                    finished_at_str = finished_at_str[:26]
+        table = []
+        for container in containers:
+            exit_code = container.__dict__['attrs']['State']['ExitCode']
+            error = container.__dict__['attrs']['State']['Error']
+            started_at_str = container.__dict__[
+                'attrs']['State']['StartedAt']
+            finished_at_str = container.__dict__[
+                'attrs']['State']['FinishedAt']
+            if sys.version_info < (3, 11):
+                started_at_str = started_at_str[:26]
+                finished_at_str = finished_at_str[:26]
 
-                now = datetime.now(timezone.utc)
-                started_at = datetime.fromisoformat(
-                    started_at_str) if container.status != "created" else now
-                finished_at = datetime.fromisoformat(
-                    finished_at_str) if container.status == "exited" else now
-                
-                # Ensure timezone is UTC
-                if started_at.tzinfo is None:
-                    started_at = started_at.replace(tzinfo=timezone.utc)
-                
-                if finished_at.tzinfo is None:
-                    finished_at = finished_at.replace(tzinfo=timezone.utc)
+            now = datetime.now(timezone.utc)
+            started_at = datetime.fromisoformat(
+                started_at_str) if container.status != "created" else now
+            finished_at = datetime.fromisoformat(
+                finished_at_str) if container.status == "exited" else now
+            
+            # Ensure timezone is UTC
+            if started_at.tzinfo is None:
+                started_at = started_at.replace(tzinfo=timezone.utc)
+            
+            if finished_at.tzinfo is None:
+                finished_at = finished_at.replace(tzinfo=timezone.utc)
 
-                uptime = finished_at - started_at
+            uptime = finished_at - started_at
 
-                output = "{0.short_id}\t{0.name}\t{0.status} ({1})\t{2}\t{3}\n".format(
-                    container, exit_code, uptime, error)
-                result += output
-        return result
+            table.append([
+                container.short_id, container.name,
+                "%s (%s)" % (container.status, exit_code),
+                uptime, error
+            ])
+        return tabulate(table, headers=header, showindex=False)
 
 
 def main(command:str, config:SimulationConfigModel):
