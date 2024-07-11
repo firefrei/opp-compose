@@ -92,11 +92,12 @@ class ContainerManager:
         return self.docker_client.containers.list(
             all=True,
             filters={
-            'label': labels
-        })
+                'label': labels
+            })
 
     def run(self) -> list:
         created = []
+        running_names = set([ c.name for c in self.list() ])
 
         if not os.path.exists(self.config.results_path):
             self.log.error("Path for results files does not exist!")
@@ -108,6 +109,9 @@ class ContainerManager:
             base_name=self.config.name)
 
         for cont_number, cont_name in cont_name_gen:
+            if cont_name in running_names:
+                continue
+
             result_path = os.path.join(self.config.results_path, cont_name)
             cont_volumes = ['%s:%s' %
                             (result_path, self.config.container_result_path)]
@@ -178,6 +182,14 @@ class ContainerFormatter:
                     started_at_str) if container.status != "created" else now
                 finished_at = datetime.fromisoformat(
                     finished_at_str) if container.status == "exited" else now
+                
+                # Ensure timezone is UTC
+                if started_at.tzinfo is None:
+                    started_at = started_at.replace(tzinfo=timezone.utc)
+                
+                if finished_at.tzinfo is None:
+                    finished_at = finished_at.replace(tzinfo=timezone.utc)
+
                 uptime = finished_at - started_at
 
                 output = "{0.short_id}\t{0.name}\t{0.status} ({1})\t{2}\t{3}\n".format(
@@ -221,10 +233,10 @@ def main(command:str, config:SimulationConfigModel):
         logger.info("Removed %d container(s)." % (cnt_removed))
 
     elif command in ['up']:
-        if not containers.list():
-            created = containers.run()
+        created = containers.run()
+        if created:
             print("Created %d simulation container(s):\n%s" %
-                  (len(created), formatter.status(created)))
+                    (len(created), formatter.status(created)))
         else:
             items = containers.list()
             logger.warning("Simulation container(s) are already running. Nothing was changed.\nExisting container(s):\n%s" % (
