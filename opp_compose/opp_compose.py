@@ -223,7 +223,7 @@ def main(command:str, config:SimulationConfigModel):
 
     if command in ['ps']:
         items = containers.list()
-        print("Simulation Container Overview for Simulation '%s':\n%s" % (config, formatter.status(items)))
+        print("Simulation Container Overview for Simulation '%s':\n%s\n" % (config, formatter.status(items)))
     
     elif command in ['ps-all']:
         items = containers.list(all=True)
