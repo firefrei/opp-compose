@@ -9,7 +9,44 @@ import pprint
 
 from argparse import Namespace
 from collections.abc import Generator
-from datetime import datetime
+from datetime import datetime, timezone
+
+
+class SimulationConfigModel:
+    def __init__(self) -> None:
+        # Environment
+        self.name:str = None
+        self.ini:str = None
+        self.configuration:str = None
+        
+        ## Container Image
+        self.image:str = None
+        self.user:str = None
+        self.container_result_path:str = None
+        # self.registry_username:str = None
+        # self.registry_password:str = None
+
+        # Results
+        self.results_path:str = None
+
+        # Runs
+        self.first:str = None
+        self.last:str = None
+
+    def __str__(self) -> str:
+        return self.name if self.name else super().__str__()
+
+    def from_dict(self, src:dict):
+        for key, value in src.items():
+            if hasattr(self, key):
+                setattr(self, key, value)
+        return self
+
+    def valid(self) -> bool:
+        for value in self.__dict__.values():
+            if value is None:
+                return False
+        return True
 
 
 class ContainerNameGenerator(Generator):
@@ -38,9 +75,9 @@ class ContainerNameGenerator(Generator):
 
 
 class ContainerManager:
-    def __init__(self, config) -> None:
+    def __init__(self, config:SimulationConfigModel, logger:logging.Logger) -> None:
         self.config = config
-        self.log = logging.getLogger(__name__)
+        self.log = logger.getChild(__name__)
         self.docker_client = docker.from_env()
 
     def list(self) -> list:
@@ -56,7 +93,7 @@ class ContainerManager:
         created = []
 
         if not os.path.exists(self.config.results_path):
-            LOG.error("Path for results files does not exist!")
+            self.log.error("Path for results files does not exist!")
             exit(2)
 
         cont_name_gen = ContainerNameGenerator(
@@ -130,7 +167,7 @@ class ContainerFormatter:
                     started_at_str = started_at_str[:26]
                     finished_at_str = finished_at_str[:26]
 
-                now = datetime.utcnow()
+                now = datetime.now(timezone.utc)
                 started_at = datetime.fromisoformat(
                     started_at_str) if container.status != "created" else now
                 finished_at = datetime.fromisoformat(
@@ -143,65 +180,67 @@ class ContainerFormatter:
         return result
 
 
-def main():
-    if (CONFIG.last - CONFIG.first) > os.cpu_count():
-        LOG.warning("Not enough CPU cores available to run all simulations!")
+def main(command:str, config:SimulationConfigModel):
+    logger = LOG.getChild(config.name)
+
+    if (config.last - config.first) > os.cpu_count():
+        logger.warning("Not enough CPU cores available to run all simulations!")
 
     pp = pprint.PrettyPrinter(indent=4)
-    containers = ContainerManager(CONFIG)
+    containers = ContainerManager(config, logger)
     formatter = ContainerFormatter()
     docker_client = docker.from_env()
 
-    if CONFIG.command in ['ps']:
+    if command in ['ps']:
         items = containers.list()
-        print("Simulation Container Overview:\n%s" % (formatter.status(items)))
+        print("Simulation Container Overview for Simulation '%s':\n%s" % (config, formatter.status(items)))
 
-    elif CONFIG.command in ['stop']:
+    elif command in ['stop']:
         cnt = containers.stop()
-        LOG.info("Stopped %d container(s)." % (cnt))
+        logger.info("Stopped %d container(s)." % (cnt))
 
-    elif CONFIG.command in ['rm', 'remove']:
+    elif command in ['rm', 'remove']:
         cnt = containers.remove()
-        LOG.info("Removed %d container(s)." % (cnt))
+        logger.info("Removed %d container(s)." % (cnt))
 
-    elif CONFIG.command in ['down']:
+    elif command in ['down']:
         cnt_stopped = containers.stop()
-        LOG.info("Stopped %d container(s)." % (cnt_stopped))
+        logger.info("Stopped %d container(s)." % (cnt_stopped))
         cnt_removed = containers.remove()
-        LOG.info("Removed %d container(s)." % (cnt_removed))
+        logger.info("Removed %d container(s)." % (cnt_removed))
 
-    elif CONFIG.command in ['up']:
+    elif command in ['up']:
         if not containers.list():
             created = containers.run()
             print("Created %d simulation container(s):\n%s" %
                   (len(created), formatter.status(created)))
         else:
             items = containers.list()
-            LOG.warning("Simulation container(s) are already running. Nothing was changed.\nExisting container(s):\n%s" % (
+            logger.warning("Simulation container(s) are already running. Nothing was changed.\nExisting container(s):\n%s" % (
                 formatter.status(items)))
     
-    elif CONFIG.command in ['pull', 'image-pull']:
+    elif command in ['pull', 'image-pull']:
         image = containers.image_pull()
-        LOG.info("Pulled image %s." % (image))
+        logger.info("Pulled image %s." % (image))
 
-    elif CONFIG.command in ['config-dump']:
-        print(yaml.dump(vars(CONFIG)))
+    elif command in ['config-dump']:
+        print(yaml.dump(vars(config)))
 
-    elif CONFIG.command in ['testup']:
+    elif command in ['testup']:
         cont_name_gen = ContainerNameGenerator(
-            first_idx=CONFIG.first, last_idx=CONFIG.last, base_name=CONFIG.name)
+            first_idx=config.first, last_idx=config.last, base_name=config.name)
         for cont_number, cont_name in cont_name_gen:
             result = docker_client.containers.run('alpine', 'echo hello world',
                                                   name=cont_name,
                                                   detach=True,
                                                   labels={
-                                                      'sim-config': CONFIG.configuration,
+                                                      'sim-config': config.configuration,
                                                       'app': 'opp_compose'
                                                   })
             pp.pprint(result)
 
     else:
-        LOG.error("Unknown command: %s" % (CONFIG.command))
+        logger.error("Unknown command: %s" % (command))
         exit(1)
 
 
@@ -225,7 +264,7 @@ def parse_configuration() -> argparse.Namespace:
     parser.add_argument('--last', type=int, default=None,
                         help='Run number of the last run to launch')
     parser.add_argument('--image',
-                        default='mobmecmeshsim',
+                        default='simulation',
                         help='Name of the docker container image to use')
     parser.add_argument('--name',
                         default='sim-r',
@@ -253,6 +292,8 @@ def parse_configuration() -> argparse.Namespace:
     if args.command in ['help']:
         parser.print_help()
         parser.exit(0)
+    
+    extra_options = [ "simulations" ]
 
     # Additionally import configuration file
     yaml_file = os.path.abspath(args.file)
@@ -265,7 +306,7 @@ def parse_configuration() -> argparse.Namespace:
 
             # Update primary config with values from secondary config
             for key, value in config_sec.items():
-                if key not in config_prim:
+                if key not in config_prim and key not in extra_options:
                     parser.error(
                         "`%s` is not a valid configuration option!" % (key))
 
@@ -277,16 +318,29 @@ def parse_configuration() -> argparse.Namespace:
 
             args = Namespace(**config_prim)
 
+    # Create simulation model objects
+    sim_objects = []
+    sim_main = SimulationConfigModel().from_dict(vars(args))
+    if sim_main.valid():
+        sim_objects.append(sim_main)
+    if "simulations" in args:
+        for simulation in args.simulations:
+            sim = SimulationConfigModel().from_dict(vars(args)).from_dict(simulation)
+            if sim.valid():
+                sim_objects.append(sim)
+            else:
+                parser.error("Simulation configuration %s is not valid, maybe some parameters are not defined." % (sim))
+
     # Validate configuration dependencies and values
-    if not args.configuration:
+    if not sim_objects and not args.configuration:
         parser.error(
             "OMNeT++ configuration name not defined. [Argument: configuration]")
 
-    if args.last is None:
+    if not sim_objects and args.last is None:
         parser.error(
             "Run number of last run to launch is not defined. [Argument: last]")
 
-    return args
+    return args, sim_objects
 
 
 if __name__ == "__main__":
@@ -295,7 +349,8 @@ if __name__ == "__main__":
     LOG = logging.getLogger("opp_compose")
 
     # Init configuration
-    CONFIG = parse_configuration()
+    config, simulations = parse_configuration()
 
     # Run actions
-    main()
+    for simulation in simulations:
+        main(config.command, simulation)
