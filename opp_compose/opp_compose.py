@@ -81,14 +81,19 @@ class ContainerManager:
         self.log = logger.getChild(__name__)
         self.docker_client = docker.from_env()
 
-    def list(self) -> list:
+    def list(self, all:bool = False) -> list:
+        labels = [
+            'app=opp_compose'
+        ]
+
+        if not all:
+            labels.append('sim-name=%s' % (self.config.name))
+
         return self.docker_client.containers.list(
             all=True,
             filters={
-                'label': [
-                    'sim-config=%s' % (self.config.configuration)
-                ]
-            })
+            'label': labels
+        })
 
     def run(self) -> list:
         created = []
@@ -121,7 +126,7 @@ class ContainerManager:
                 volumes=cont_volumes,
                 user=self.config.user,
                 labels={
-                    'sim-config': self.config.configuration,
+                    'sim-name': self.config.name,
                     'app': 'opp_compose'
                 })
             created.append(cont)
@@ -195,6 +200,11 @@ def main(command:str, config:SimulationConfigModel):
     if command in ['ps']:
         items = containers.list()
         print("Simulation Container Overview for Simulation '%s':\n%s" % (config, formatter.status(items)))
+    
+    elif command in ['ps-all']:
+        items = containers.list(all=True)
+        print("Simulation Container Overview - All Simulations Launched by OPP-Compose:\n%s" % (formatter.status(items)))
+        exit(0)
 
     elif command in ['stop']:
         cnt = containers.stop()
@@ -235,7 +245,7 @@ def main(command:str, config:SimulationConfigModel):
                                                   name=cont_name,
                                                   detach=True,
                                                   labels={
-                                                      'sim-config': config.configuration,
+                                                      'sim-name': config.name,
                                                       'app': 'opp_compose'
                                                   })
             pp.pprint(result)
@@ -249,7 +259,7 @@ def parse_configuration() -> Tuple[argparse.Namespace, List[SimulationConfigMode
     parser = argparse.ArgumentParser(
         description='OMNeT++ Compose :: Launch OMNeT++ Simulations as Containers')
     parser.add_argument('command',
-                        choices=['ps', 'up',
+                        choices=['ps', 'ps-all', 'up',
                                  'down', 'stop', 'rm',
                                  'pull', 'image-pull',
                                  'config-dump', 'help',
