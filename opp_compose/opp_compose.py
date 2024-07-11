@@ -7,6 +7,7 @@ import yaml
 import docker
 import pprint
 
+from typing import Tuple, List
 from argparse import Namespace
 from collections.abc import Generator
 from datetime import datetime, timezone
@@ -244,7 +245,7 @@ def main(command:str, config:SimulationConfigModel):
         exit(1)
 
 
-def parse_configuration() -> argparse.Namespace:
+def parse_configuration() -> Tuple[argparse.Namespace, List[SimulationConfigModel]]:
     parser = argparse.ArgumentParser(
         description='OMNeT++ Compose :: Launch OMNeT++ Simulations as Containers')
     parser.add_argument('command',
@@ -267,8 +268,8 @@ def parse_configuration() -> argparse.Namespace:
                         default='simulation',
                         help='Name of the docker container image to use')
     parser.add_argument('--name',
-                        default='sim-r',
-                        help='Base name of the simulation container to use')
+                        default=r'sim%d-r',
+                        help='Base name of the simulation container to use. Run number is appended to the string. Optionally, add integer template parameter to to include simulation index.')
     parser.add_argument('--user',
                         default="",
                         help='System user-id to use inside the docker container')
@@ -352,5 +353,9 @@ if __name__ == "__main__":
     config, simulations = parse_configuration()
 
     # Run actions
+    index = 0
     for simulation in simulations:
+        if r"%d" in simulation.name:
+            simulation.name %= index
         main(config.command, simulation)
+        index += 1
