@@ -158,13 +158,17 @@ class ContainerManager:
 
 
 class ContainerFormatter:
-    def status(self, containers, *, add_header: bool = True) -> str:
+    def status(self, containers, *, add_header: bool = True, extensive:bool=False) -> str:
         header = [ 
-            "CONTAINER ID", "NAME", "STATUS (RC)", "UPTIME", ""
+            "CONTAINER ID", "NAME", "STATUS (RC)", "UPTIME"
             ] if add_header else None
+        if extensive:
+            header.append("CONFIGURATION")
+        header.append("")
 
         table = []
         for container in containers:
+            # Container Runtime Info
             exit_code = container.__dict__['attrs']['State']['ExitCode']
             error = container.__dict__['attrs']['State']['Error']
             started_at_str = container.__dict__[
@@ -181,20 +185,28 @@ class ContainerFormatter:
             finished_at = datetime.fromisoformat(
                 finished_at_str) if container.status == "exited" else now
             
-            # Ensure timezone is UTC
+            ## Ensure timezone is UTC
             if started_at.tzinfo is None:
                 started_at = started_at.replace(tzinfo=timezone.utc)
-            
             if finished_at.tzinfo is None:
                 finished_at = finished_at.replace(tzinfo=timezone.utc)
 
             uptime = finished_at - started_at
 
-            table.append([
+            line = [
                 container.short_id, container.name,
                 "%s (%s)" % (container.status, exit_code),
-                uptime, error
-            ])
+                uptime
+            ]
+
+            # Container Config Info
+            if extensive:
+                labels = container.__dict__['attrs']['Config']['Labels']
+                line.append(labels['sim-config'])
+
+            line.append(error)
+
+            table.append(line)
         return tabulate(table, headers=header, showindex=False)
 
 
@@ -215,7 +227,7 @@ def main(command:str, config:SimulationConfigModel):
     
     elif command in ['ps-all']:
         items = containers.list(all=True)
-        print("Simulation Container Overview - All Simulations Launched by OPP-Compose:\n%s" % (formatter.status(items)))
+        print("Simulation Container Overview - All Simulations Launched by OPP-Compose:\n%s" % (formatter.status(items, extensive=True)))
         exit(0)
 
     elif command in ['stop']:
