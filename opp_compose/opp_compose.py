@@ -207,7 +207,7 @@ class ContainerFormatter:
             line.append(error)
 
             table.append(line)
-        return tabulate(table, headers=header, showindex=False)
+        return tabulate(table, headers=header, showindex=False, maxcolwidths=20)
 
 
 def main(command:str, config:SimulationConfigModel):
