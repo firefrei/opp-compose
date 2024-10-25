@@ -318,6 +318,9 @@ def parse_configuration() -> Tuple[argparse.Namespace, List[SimulationConfigMode
     parser.add_argument('--container-result-path',
                         default="/usr/results",
                         help='Absolute path on container file system where to store simulation result files (right side of container bind mount)')
+    parser.add_argument('--sim-time-limit',
+                        default="",
+                        help='Defines the OPP_RUN_SIM_TIME_LIMIT environment variable to the simulation container (example value `1000s`).')
     # parser.add_argument('--registry-username',
     #                     help='Login username at container registry')
     # parser.add_argument('--registry-password',
