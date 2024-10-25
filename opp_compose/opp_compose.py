@@ -20,6 +20,7 @@ class SimulationConfigModel:
         self.name:str = None
         self.ini:str = None
         self.configuration:str = None
+        self.sim_time_limit:str = None
         
         ## Container Image
         self.image:str = None
@@ -120,7 +121,8 @@ class ContainerManager:
                 'OPP_RUN_INIFILE': self.config.ini,
                 'OPP_RUN_CONFIG': self.config.configuration,
                 'OPP_RUN_NUMBER': cont_number,
-                'OPP_RUN_RESULT_DIR': self.config.container_result_path
+                'OPP_RUN_RESULT_DIR': self.config.container_result_path,
+                'OPP_RUN_SIM_TIME_LIMIT': self.config.sim_time_limit
             }
 
             cont = self.docker_client.containers.run(
